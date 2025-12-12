@@ -376,14 +376,18 @@ function keyReleased() {
                 player.Jump();
             }
             break;
-        case DOWN_ARROW:
-            evolationSpeed = constrain(evolationSpeed - 1, 0, 50);
-            print(evolationSpeed)
-
+    }
+    
+    switch (key) {
+        case '-':
+        case '_':
+            evolationSpeed = constrain(evolationSpeed - 1, 1, 50);
+            print("Speed:", evolationSpeed);
             break;
-        case UP_ARROW:
-            evolationSpeed = constrain(evolationSpeed + 1, 0, 50);
-            print(evolationSpeed)
+        case '=':
+        case '+':
+            evolationSpeed = constrain(evolationSpeed + 1, 1, 50);
+            print("Speed:", evolationSpeed);
             break;
     }
 }
