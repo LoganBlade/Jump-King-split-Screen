@@ -198,7 +198,6 @@ function draw() {
         text('Gen: ' + population.gen, 30, 35);
         text('Moves: ' + population.players[0].brain.instructions.length, 200, 35);
         text('Best: ' + population.bestHeight, 400, 35);
-        text('Spd:' + evolationSpeed, 560, 35);
     }
 
 
