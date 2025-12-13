@@ -208,10 +208,7 @@ function draw() {
         text('Gen: ' + population.gen, 30, 35);
         text('Moves: ' + population.players[0].brain.instructions.length, 200, 35);
         text('Best: ' + population.bestHeight, 400, 35);
-        // Show candidate success count and requirement if there's a pending candidate level
-        if (population.latestCandidateSuccessCount && population.latestCandidateSuccessCount > 0 && population.currentBestLevelReached < population.players[population.bestPlayerIndex].bestLevelReached) {
-            text('Successes: ' + population.latestCandidateSuccessCount + '/' + population.requiredSuccessfulPlayersForLevel, 480, 35);
-        }
+        // Success HUD removed per user request; hide candidate success count
         // Checkpoint HUD removed per user request
         // Carry actions removed — always carry parent's action number when resuming at checkpoint
         // Removed checkpoint Level HUD to avoid overlaying FPS
