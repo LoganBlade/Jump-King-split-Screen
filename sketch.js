@@ -395,6 +395,10 @@ function keyPressed() {
         case 'A':
             if (multiplayerMode) player2.leftHeld = true;
             break;
+        case 'd':
+        case 'D':
+            if (multiplayerMode) player2.rightHeld = true;
+            break;
         
     }
 
@@ -490,14 +494,14 @@ function keyReleased() {
                 player.Jump()
             }
             break;
-        case 'w':
-        case 'W':
-            if (multiplayerMode) {
-                player2.jumpHeld = false;
-                player2.Jump();
-            }
-            break;
         case 'a':
+        case 'A':
+            if (multiplayerMode) player2.leftHeld = false;
+            break;
+        case 'd':
+        case 'D':
+            if (multiplayerMode) player2.rightHeld = false;
+            break;
         case 'A':
             if (multiplayerMode) player2.leftHeld = false;
             break;

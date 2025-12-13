@@ -222,6 +222,10 @@ function keyPressed() {
             landSound.stop();
             fallSound.stop();
             break;
+        case 'd':
+        case 'D':
+            if (multiplayerMode) player2.rightHeld = true;
+            break;
     }
 
     switch (keyCode) {
@@ -271,6 +275,10 @@ function keyReleased() {
             break;
         case RIGHT_ARROW:
             player.rightHeld = false;
+            break;
+        case 'd':
+        case 'D':
+            if (multiplayerMode) player2.rightHeld = false;
             break;
     }
 }
