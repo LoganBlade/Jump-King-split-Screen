@@ -35,20 +35,35 @@ Set `testingSinglePlayer = true` and `multiplayerMode = true` in sketch.js
 ### AI Training Mode
 Set `testingSinglePlayer = false` in sketch.js
 - Uses genetic algorithm + neural networks
-- Press "1" to save the best AI brain
-- Press "2" to load a saved brain
+- Press "1" to save the best AI brain (download JSON file)
+- Press "2" to open the file picker and import a brain or checkpoint JSON file
 - Press "B" to replay the best player
 - Up/Down arrows to adjust evolution speed
- - Press "1" to download the best AI brain as a JSON file (also stored to localStorage as backup)
+ - Press "1" to download the best AI brain as a JSON file
+ - Press "2" to open the file picker for importing a brain or checkpoint file
  - Drag the downloaded brain JSON onto the canvas or double-click the canvas to import it
  - Press "P" to toggle checkpoint progression (start new generations from last-unlocked level)
  - Press "P" to toggle checkpoint progression (start new generations from last-unlocked level)
  - The carry-action behavior is always enabled; new generations that begin at a checkpoint inherit the parent's instruction index at the moment the checkpoint was saved.
- - Press "K" to immediately reapply the saved checkpoint to all currently running players (good for testing).
+ - Press "K" to immediately reapply the saved checkpoint to all currently running players (good for testing). Note: 'K' will not create a new checkpoint; checkpoints must be created by the population when enough AIs reach a level, or loaded from a checkpoint file.
+ - Press "3" to download the currently held checkpoint as a JSON file
+
+New behavior: A level only becomes a checkpoint once at least 5 AIs have reached it in the same generation. This prevents checkpoints from being created by a single lucky AI.
 
 ## Controls Summary
-- Player 1: Arrow keys (Left/Right movement), Space (jump)
-- Player 2: A/D (movement), W (jump)
-- "1" - Save AI brain (AI mode)
-- "2" - Load AI brain (AI mode)
-- "B" - Replay best player (AI mode)
+## Controls Summary
+- **Player 1:** Arrow keys (Left/Right movement), UP arrow or Space (press & hold to charge jump; release to perform jump)
+- **Player 2:** A/D (movement), W (jump) — only in local multiplayer mode
+- **B:** Replay the best player (AI mode)
+- **1:** Save the best AI brain to a downloadable JSON file (AI mode)
+- **2:** Open the file picker to import a brain or checkpoint JSON file (or drag/drop/double-click canvas)
+- **P:** Toggle checkpoint progression mode (start new generations from last-unlocked level)
+- **R:** Reset players when not in line-creation mode; when creating lines, clears current level lines being drawn
+- **N:** When creating lines, create a new level; otherwise, increment current player's level (debug)
+- **D:** Cancels current line placement while creating lines
+- **S:** Stop all sounds
+- **- / _ / [ :** Decrease evolution speed
+- **= / + / ] :** Increase evolution speed
+- **0:** Reset evolution speed to 1
+- **9:** Set evolution speed to 10
+- **8:** Set evolution speed to 50 (max)

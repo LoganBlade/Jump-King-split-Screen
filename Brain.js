@@ -127,13 +127,8 @@ class Brain {
     }
 
     static saveBestBrain(brain, gen) {
-        const data = {
-            brain: brain.toJSON(),
-            generation: gen,
-            savedAt: new Date().toISOString()
-        };
-        localStorage.setItem('jumpKingBestBrain', JSON.stringify(data));
-        console.log('Brain saved! Generation: ' + gen + ', Moves: ' + brain.instructions.length);
+        // LocalStorage saving disabled — use file-based save only
+        console.warn('LocalStorage brain saving is disabled; use saveBestBrainToFile');
     }
 
     // Save brain to a downloadable JSON file so users can drag this file back onto the page
@@ -158,12 +153,8 @@ class Brain {
     }
 
     static loadBestBrain() {
-        const saved = localStorage.getItem('jumpKingBestBrain');
-        if (saved) {
-            const data = JSON.parse(saved);
-            console.log('Brain loaded! Generation: ' + data.generation + ', Moves: ' + data.brain.instructions.length);
-            return { brain: Brain.fromJSON(data.brain), generation: data.generation };
-        }
+        // LocalStorage brain loading disabled — use file-based import only
+        console.warn('LocalStorage brain loading is disabled; use file import (drag/drop or file picker)');
         return null;
     }
 

@@ -132,6 +132,50 @@ class PlayerState {
         return clone;
     }
 
+    toJSON() {
+        return {
+            currentPos: { x: this.currentPos.x, y: this.currentPos.y },
+            currentSpeed: { x: this.currentSpeed.x, y: this.currentSpeed.y },
+            isOnGround: this.isOnGround,
+            blizzardForce: this.blizzardForce,
+            blizzardForceAccelerationDirection: this.blizzardForceAccelerationDirection,
+            maxBlizzardForceTimer: this.maxBlizzardForceTimer,
+            snowImagePosition: this.snowImagePosition,
+            bestHeightReached: this.bestHeightReached,
+            bestLevelReached: this.bestLevelReached,
+            reachedHeightAtStepNo: this.reachedHeightAtStepNo,
+            bestLevelReachedOnActionNo: this.bestLevelReachedOnActionNo,
+            brainActionNumber: this.brainActionNumber,
+            currentLevelNo: this.currentLevelNo,
+            jumpStartingHeight: this.jumpStartingHeight,
+            facingRight: this.facingRight,
+            isWaitingToStartAction: this.isWaitingToStartAction,
+            actionStarted: this.actionStarted
+        };
+    }
+
+    static fromJSON(obj) {
+        let state = new PlayerState();
+        state.currentPos = createVector(obj.currentPos.x, obj.currentPos.y);
+        state.currentSpeed = createVector(obj.currentSpeed.x, obj.currentSpeed.y);
+        state.isOnGround = obj.isOnGround;
+        state.blizzardForce = obj.blizzardForce;
+        state.blizzardForceAccelerationDirection = obj.blizzardForceAccelerationDirection;
+        state.maxBlizzardForceTimer = obj.maxBlizzardForceTimer;
+        state.snowImagePosition = obj.snowImagePosition;
+        state.bestHeightReached = obj.bestHeightReached;
+        state.bestLevelReached = obj.bestLevelReached;
+        state.reachedHeightAtStepNo = obj.reachedHeightAtStepNo;
+        state.bestLevelReachedOnActionNo = obj.bestLevelReachedOnActionNo;
+        state.brainActionNumber = obj.brainActionNumber;
+        state.currentLevelNo = obj.currentLevelNo;
+        state.jumpStartingHeight = obj.jumpStartingHeight;
+        state.facingRight = obj.facingRight;
+        state.isWaitingToStartAction = obj.isWaitingToStartAction;
+        state.actionStarted = obj.actionStarted;
+        return state;
+    }
+
 
 }
 

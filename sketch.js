@@ -41,6 +41,7 @@ let snowImage = null;
 
 
 let population = null;
+let filePickerInput = null; // exposed file input so keyboard can open it
 let levelDrawn = false;
 
 
@@ -48,6 +49,7 @@ let startingPlayerActions = 5;
 let increaseActionsByAmount = 5;
 let increaseActionsEveryXGenerations = 10;
 let evolationSpeed = 1;
+let maxUpdateTimePerFrameMs = 14; // ms budget per frame for updates (keeps rendering time for draw)
 
 
 function preload() {
@@ -92,6 +94,7 @@ function setup() {
     
     loadMultiplayerProgress();
     setupFileDrop();
+    frameRate(60); // cap draw frames to 60fps target
 }
 
 function drawMousePosition() {
@@ -147,8 +150,10 @@ function draw() {
         }
     } else if(replayingBestPlayer) {
         if(!cloneOfBestPlayer.hasFinishedInstructions){
+            let startMs = millis();
             for (let i = 0; i < evolationSpeed; i++){
-                cloneOfBestPlayer.Update()
+                cloneOfBestPlayer.Update();
+                if (millis() - startMs > maxUpdateTimePerFrameMs) break;
             }
 
             showLevel(cloneOfBestPlayer.currentLevelNo);
@@ -167,8 +172,11 @@ function draw() {
                 population.IncreasePlayerMoves(increaseActionsByAmount);
             }
         }
-        for (let i = 0; i < evolationSpeed; i++)
-            population.Update()
+        let startMs = millis();
+        for (let i = 0; i < evolationSpeed; i++){
+            population.Update();
+            if (millis() - startMs > maxUpdateTimePerFrameMs) break;
+        }
         // population.Update()
         // population.Update()
         population.Show();
@@ -200,16 +208,14 @@ function draw() {
         text('Gen: ' + population.gen, 30, 35);
         text('Moves: ' + population.players[0].brain.instructions.length, 200, 35);
         text('Best: ' + population.bestHeight, 400, 35);
-        text('Checkpoint: ' + (enableCheckpointMode ? 'ON' : 'OFF'), 560, 35);
-        // Carry actions removed — always carry parent's action number when resuming at checkpoint
-        text('Checkpoint Level: ' + population.currentBestLevelReached, 980, 35);
-        if (population.newLevelReached) {
-            fill(255, 220, 0);
-            textSize(20);
-            text('NEW CHECKPOINT REACHED!', 30, 70);
-            textSize(32);
-            fill(255);
+        // Show candidate success count and requirement if there's a pending candidate level
+        if (population.latestCandidateSuccessCount && population.latestCandidateSuccessCount > 0 && population.currentBestLevelReached < population.players[population.bestPlayerIndex].bestLevelReached) {
+            text('Successes: ' + population.latestCandidateSuccessCount + '/' + population.requiredSuccessfulPlayersForLevel, 480, 35);
         }
+        // Checkpoint HUD removed per user request
+        // Carry actions removed — always carry parent's action number when resuming at checkpoint
+        // Removed checkpoint Level HUD to avoid overlaying FPS
+        // Removed 'NEW CHECKPOINT REACHED' HUD overlay to avoid overlapping FPS
     }
 
 
@@ -267,18 +273,31 @@ function setupFileDrop() {
         const files = e.dataTransfer.files;
         if (!files || files.length === 0) return;
         const file = files[0];
-        const loaded = await Brain.loadBestBrainFromFile(file);
-        if (!loaded) {
-            alert('Not a valid brain file');
+        // Try loading as Brain first, then fallback to checkpoint
+        let loadedBrain = await Brain.loadBestBrainFromFile(file);
+        if (loadedBrain) {
+            for (let i = 0; i < population.players.length; i++) {
+                population.players[i].brain = loadedBrain.brain.clone();
+                population.players[i].brain.mutate();
+            }
+            population.gen = loadedBrain.generation || population.gen;
+            alert('Brain file loaded! Generation: ' + loadedBrain.generation);
             return;
         }
-        // Load into current population
-        for (let i = 0; i < population.players.length; i++) {
-            population.players[i].brain = loaded.brain.clone();
-            population.players[i].brain.mutate();
+        // Try checkpoint
+        let loadedCheckpoint = await population.loadCheckpointFromFile(file);
+        if (loadedCheckpoint) {
+            for (let i = 0; i < population.players.length; i++) {
+                population.players[i].playerStateAtStartOfBestLevel = population.checkpointState.clone();
+                population.players[i].loadStartOfBestLevelPlayerState();
+                if (population.checkpointState.brainActionNumber !== undefined) {
+                    population.players[i].brain.currentInstructionNumber = population.checkpointState.brainActionNumber;
+                }
+            }
+            alert('Checkpoint file loaded! Level: ' + loadedCheckpoint.level + ' Generation: ' + loadedCheckpoint.generation);
+            return;
         }
-        population.gen = loaded.generation || population.gen;
-        alert('Brain file loaded! Generation: ' + loaded.generation);
+        alert('Not a valid brain or checkpoint file');
     });
 
     // Hidden input to fallback to manual file selection
@@ -287,20 +306,33 @@ function setupFileDrop() {
     input.accept = '.json,application/json';
     input.style.display = 'none';
     document.body.appendChild(input);
+    filePickerInput = input; // expose the input globally
     input.addEventListener('change', async (e) => {
         const file = e.target.files[0];
         if (!file) return;
-        const loaded = await Brain.loadBestBrainFromFile(file);
-        if (!loaded) {
-            alert('Not a valid brain file');
+        let loadedBrain = await Brain.loadBestBrainFromFile(file);
+        if (loadedBrain) {
+            for (let i = 0; i < population.players.length; i++) {
+                population.players[i].brain = loadedBrain.brain.clone();
+                population.players[i].brain.mutate();
+            }
+            population.gen = loadedBrain.generation || population.gen;
+            alert('Brain file loaded! Generation: ' + loadedBrain.generation);
             return;
         }
-        for (let i = 0; i < population.players.length; i++) {
-            population.players[i].brain = loaded.brain.clone();
-            population.players[i].brain.mutate();
+        let loadedCheckpoint = await population.loadCheckpointFromFile(file);
+        if (loadedCheckpoint) {
+            for (let i = 0; i < population.players.length; i++) {
+                population.players[i].playerStateAtStartOfBestLevel = population.checkpointState.clone();
+                population.players[i].loadStartOfBestLevelPlayerState();
+                if (population.checkpointState.brainActionNumber !== undefined) {
+                    population.players[i].brain.currentInstructionNumber = population.checkpointState.brainActionNumber;
+                }
+            }
+            alert('Checkpoint file loaded! Level: ' + loadedCheckpoint.level + ' Generation: ' + loadedCheckpoint.generation);
+            return;
         }
-        population.gen = loaded.generation || population.gen;
-        alert('Brain file loaded! Generation: ' + loaded.generation);
+        alert('Not a valid brain or checkpoint file');
     });
 
     // small UI: click the canvas to pick a file
@@ -365,26 +397,20 @@ function keyReleased() {
             break;
         case '1':
             if (population.cloneOfBestPlayerFromPreviousGeneration) {
-                // Save to localStorage as a backup
-                Brain.saveBestBrain(population.cloneOfBestPlayerFromPreviousGeneration.brain, population.gen);
-                // Also download a file that can be dragged back into the page
+                // Only save to file (localStorage disabled)
                 Brain.saveBestBrainToFile(population.cloneOfBestPlayerFromPreviousGeneration.brain, population.gen);
-                alert('Brain saved to file and localStorage. Generation: ' + population.gen);
+                alert('Brain saved to file. Generation: ' + population.gen);
             }
             break;
         case '2':
-            let loaded = Brain.loadBestBrain();
-            if (loaded) {
-                for (let i = 0; i < population.players.length; i++) {
-                    population.players[i].brain = loaded.brain.clone();
-                    population.players[i].brain.mutate();
-                }
-                population.gen = loaded.generation;
-                alert('Brain loaded! Generation: ' + loaded.generation);
+            // Open file picker to import a brain or checkpoint
+            if (filePickerInput) {
+                filePickerInput.click();
             } else {
-                alert('No saved brain found!');
+                alert('File picker not available');
             }
             break;
+        // case '3': removed — checkpoint save is file-only via UI drag/drop or similar
         case 'P':
             // Toggle checkpoint progression on/off
             enableCheckpointMode = !enableCheckpointMode;
@@ -392,19 +418,8 @@ function keyReleased() {
             break;
         // 'O' removed — carry actions always enabled
         case 'K':
-            if (population && population.checkpointState) {
-                for (let i = 0; i < population.players.length; i++) {
-                    population.players[i].playerStateAtStartOfBestLevel = population.checkpointState.clone();
-                    population.players[i].loadStartOfBestLevelPlayerState();
-                    // Always carry the parent's action number
-                    if (population.checkpointState.brainActionNumber !== undefined) {
-                        population.players[i].brain.currentInstructionNumber = population.checkpointState.brainActionNumber;
-                    }
-                }
-                alert('Checkpoint reapplied to all players');
-            } else {
-                alert('No checkpoint saved');
-            }
+            // K key intentionally does nothing now — reserved for future UI features
+            break;
             break;
 
 

@@ -25,6 +25,9 @@ class Population {
         this.newLevelReached = false;
         this.cloneOfBestPlayerFromPreviousGeneration = this.players[0].clone();
         this.checkpointState = null; // PlayerState snapshot for the current best level checkpoint
+        // No local persistence for checkpoints; file-based only
+        this.requiredSuccessfulPlayersForLevel = 5; // require this many players to reach a level before it's unlocked
+        this.latestCandidateSuccessCount = 0; // last generation's candidate success count
     }
 
     Update() {
@@ -43,6 +46,8 @@ class Population {
 
         this.bestPlayerIndex = 0;
         this.newLevelReached = false;
+        // Reset candidate success count for this generation; we'll recompute if there's a candidate
+        this.latestCandidateSuccessCount = 0;
         for (let i = 0; i < this.players.length; i++) {
             if (this.players[i].bestHeightReached > this.players[this.bestPlayerIndex].bestHeightReached) {
                 this.bestPlayerIndex = i;
@@ -50,19 +55,33 @@ class Population {
         }
 
         if (this.players[this.bestPlayerIndex].bestLevelReached > this.currentBestLevelReached) {
-            this.currentBestLevelReached = this.players[this.bestPlayerIndex].bestLevelReached;
-            this.newLevelReached = true;
-            this.reachedBestLevelAtActionNo = this.players[this.bestPlayerIndex].bestLevelReachedOnActionNo;
-            print("NEW LEVEL, action number", this.reachedBestLevelAtActionNo)
-            console.log('Checkpoint saved: level ' + this.currentBestLevelReached + ' at action ' + this.reachedBestLevelAtActionNo);
-            // Save a checkpoint state from the player's saved start-of-best-level state (if present)
-            if (this.players[this.bestPlayerIndex].playerStateAtStartOfBestLevel) {
-                this.checkpointState = this.players[this.bestPlayerIndex].playerStateAtStartOfBestLevel.clone();
+            let candidateLevel = this.players[this.bestPlayerIndex].bestLevelReached;
+            // Count how many players have reached this candidate level
+            let count = 0;
+            for (let i = 0; i < this.players.length; i++) {
+                if (this.players[i].bestLevelReached >= candidateLevel) count++;
+            }
+            this.latestCandidateSuccessCount = count;
+            // Only unlock the candidate level if at least requiredSuccessfulPlayersForLevel players did it
+            if (count >= this.requiredSuccessfulPlayersForLevel) {
+                this.currentBestLevelReached = candidateLevel;
+                this.newLevelReached = true;
+                this.reachedBestLevelAtActionNo = this.players[this.bestPlayerIndex].bestLevelReachedOnActionNo;
+                print("NEW LEVEL, action number", this.reachedBestLevelAtActionNo)
+                console.log('Checkpoint saved: level ' + this.currentBestLevelReached + ' at action ' + this.reachedBestLevelAtActionNo + ' (count=' + count + ')');
+                // Save a checkpoint state from the player's saved start-of-best-level state (if present)
+                if (this.players[this.bestPlayerIndex].playerStateAtStartOfBestLevel) {
+                    this.checkpointState = this.players[this.bestPlayerIndex].playerStateAtStartOfBestLevel.clone();
+                } else {
+                    // Fallback: capture current player state
+                    let tempState = new PlayerState();
+                    tempState.getStateFromPlayer(this.players[this.bestPlayerIndex]);
+                    this.checkpointState = tempState;
+                }
+                // No local persistence for checkpoints; file-based only
             } else {
-                // Fallback: capture current player state
-                let tempState = new PlayerState();
-                tempState.getStateFromPlayer(this.players[this.bestPlayerIndex]);
-                this.checkpointState = tempState;
+                // Not enough players yet — candidate not unlocked (but track count)
+                console.log('Candidate level ' + candidateLevel + ' reached by ' + count + ' players; need ' + this.requiredSuccessfulPlayersForLevel);
             }
         }
         this.bestHeight = this.players[this.bestPlayerIndex].bestHeightReached;
@@ -128,12 +147,13 @@ class Population {
 
         this.cloneOfBestPlayerFromPreviousGeneration = this.players[this.bestPlayerIndex].clone();
 
-        // Choose checkpoint state if available and checkpoint mode enabled
+        // Choose checkpoint state if available and checkpoint mode enabled.
+        // Apply the checkpoint if it exists at all; also fallback to cloneOfBestPlayer when a new level was just reached.
         let bestStartState = null;
-        if (typeof enableCheckpointMode !== 'undefined' && enableCheckpointMode && this.newLevelReached && this.currentBestLevelReached !== 0) {
+        if (typeof enableCheckpointMode !== 'undefined' && enableCheckpointMode && this.currentBestLevelReached !== 0) {
             if (this.checkpointState) {
                 bestStartState = this.checkpointState.clone();
-            } else if (this.cloneOfBestPlayerFromPreviousGeneration && this.cloneOfBestPlayerFromPreviousGeneration.playerStateAtStartOfBestLevel) {
+            } else if (this.newLevelReached && this.cloneOfBestPlayerFromPreviousGeneration && this.cloneOfBestPlayerFromPreviousGeneration.playerStateAtStartOfBestLevel) {
                 bestStartState = this.cloneOfBestPlayerFromPreviousGeneration.playerStateAtStartOfBestLevel.clone();
             }
         }
@@ -171,6 +191,55 @@ class Population {
         }
         // Reset new level flag to stop flashing the HUD next frame
         this.newLevelReached = false;
+    }
+
+    // Removed localStorage-based checkpoint persistence; file-based only
+
+    // Save checkpoint state to downloadable file
+    saveCheckpointToFile() {
+        if (!this.checkpointState) return;
+        try {
+            const obj = {
+                type: 'checkpoint',
+                generation: this.gen,
+                level: this.currentBestLevelReached,
+                checkpoint: this.checkpointState.toJSON(),
+                savedAt: new Date().toISOString()
+            };
+            const json = JSON.stringify(obj, null, 2);
+            const blob = new Blob([json], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const filename = 'jumpking_checkpoint_gen_' + this.gen + '_level_' + this.currentBestLevelReached + '.json';
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            setTimeout(() => URL.revokeObjectURL(url), 1000);
+            console.log('Checkpoint file created: ' + filename);
+        } catch (e) {
+            console.error('Failed to save checkpoint to file', e);
+        }
+    }
+
+    // Load a checkpoint file and apply to population
+    async loadCheckpointFromFile(file) {
+        try {
+            const text = await file.text();
+            const data = JSON.parse(text);
+            if (!data || data.type !== 'checkpoint' || !data.checkpoint) return null;
+            this.checkpointState = PlayerState.fromJSON(data.checkpoint);
+            if (this.checkpointState && this.checkpointState.bestLevelReached) {
+                this.currentBestLevelReached = this.checkpointState.bestLevelReached;
+            }
+            // no local save
+            console.log('Checkpoint loaded from file: level ' + this.currentBestLevelReached);
+            return { generation: data.generation || 0, level: data.level || this.currentBestLevelReached };
+        } catch (e) {
+            console.error('Failed to parse checkpoint file', e);
+            return null;
+        }
     }
 
     CalculateFitnessSum() {
