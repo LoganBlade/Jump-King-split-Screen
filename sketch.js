@@ -407,7 +407,32 @@ function keyReleased() {
                 alert('File picker not available');
             }
             break;
-        // case '3': removed — checkpoint save is file-only via UI drag/drop or similar
+        case '3':
+            // Save checkpoint to file (generate one if not present)
+            if (!population.checkpointState) {
+                // Try to use the cloneOfBestPlayer checkpoint state if available
+                if (population.cloneOfBestPlayerFromPreviousGeneration && population.cloneOfBestPlayerFromPreviousGeneration.playerStateAtStartOfBestLevel) {
+                    population.checkpointState = population.cloneOfBestPlayerFromPreviousGeneration.playerStateAtStartOfBestLevel.clone();
+                    population.currentBestLevelReached = population.cloneOfBestPlayerFromPreviousGeneration.bestLevelReached || population.currentBestLevelReached;
+                } else if (population.players && population.players[population.bestPlayerIndex] && population.players[population.bestPlayerIndex].playerStateAtStartOfBestLevel) {
+                    population.checkpointState = population.players[population.bestPlayerIndex].playerStateAtStartOfBestLevel.clone();
+                    population.currentBestLevelReached = population.players[population.bestPlayerIndex].bestLevelReached || population.currentBestLevelReached;
+                } else if (population.players && population.players.length > 0) {
+                    // Fallback: capture current state from the best player or first player
+                    let p = population.players[population.bestPlayerIndex] || population.players[0];
+                    let tempState = new PlayerState();
+                    tempState.getStateFromPlayer(p);
+                    population.checkpointState = tempState;
+                    population.currentBestLevelReached = tempState.bestLevelReached || population.currentBestLevelReached;
+                }
+            }
+            if (population.checkpointState) {
+                population.saveCheckpointToFile();
+                alert('Checkpoint saved to file! Level: ' + population.currentBestLevelReached + ' Generation: ' + population.gen);
+            } else {
+                alert('No checkpoint available to save');
+            }
+            break;
         case 'P':
             // Toggle checkpoint progression on/off
             enableCheckpointMode = !enableCheckpointMode;
