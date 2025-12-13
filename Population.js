@@ -312,6 +312,10 @@ class Population {
                     if (this.checkpointState.brainActionNumber !== undefined) {
                         this.players[i].brain.currentInstructionNumber = this.checkpointState.brainActionNumber;
                     }
+                    // Reset run state so they can start using the loaded snapshot
+                    this.players[i].hasFinishedInstructions = false;
+                    this.players[i].playersDead = false;
+                    this.players[i].currentPos = this.players[i].currentPos || createVector(width / 2, height - 200);
                 }
             }
             console.log('Snapshot applied: level ' + this.currentBestLevelReached + ' generation ' + this.gen);
