@@ -270,6 +270,26 @@ function setupFileDrop() {
         const files = e.dataTransfer.files;
         if (!files || files.length === 0) return;
         const file = files[0];
+        try {
+            // Read file once to detect snapshot file type
+            const text = await file.text();
+            let parsed = null;
+            try {
+                parsed = JSON.parse(text);
+            } catch (err) {
+                parsed = null;
+            }
+            // If snapshot, apply both brain and checkpoint from the snapshot (don't mutate)
+            if (parsed && parsed.type === 'snapshot') {
+                const loadedSnapshot = population.applySnapshotData(parsed);
+                if (loadedSnapshot) {
+                    alert('Snapshot file loaded! Level: ' + loadedSnapshot.level + ' Generation: ' + loadedSnapshot.generation);
+                    return;
+                }
+            }
+        } catch (e) {
+            // ignore — we'll fall back to individual loaders below
+        }
         // Try loading as Brain first, then fallback to checkpoint
         let loadedBrain = await Brain.loadBestBrainFromFile(file);
         if (loadedBrain) {
@@ -307,6 +327,24 @@ function setupFileDrop() {
     input.addEventListener('change', async (e) => {
         const file = e.target.files[0];
         if (!file) return;
+        try {
+            const text = await file.text();
+            let parsed = null;
+            try {
+                parsed = JSON.parse(text);
+            } catch (err) {
+                parsed = null;
+            }
+            if (parsed && parsed.type === 'snapshot') {
+                const loadedSnapshot = population.applySnapshotData(parsed);
+                if (loadedSnapshot) {
+                    alert('Snapshot file loaded! Level: ' + loadedSnapshot.level + ' Generation: ' + loadedSnapshot.generation);
+                    return;
+                }
+            }
+        } catch (err) {
+            // fallback to older handlers below
+        }
         let loadedBrain = await Brain.loadBestBrainFromFile(file);
         if (loadedBrain) {
             for (let i = 0; i < population.players.length; i++) {
@@ -408,7 +446,7 @@ function keyReleased() {
             }
             break;
         case '3':
-            // Save checkpoint to file (generate one if not present)
+            // Save snapshot (brain+checkpoint) to file (generate checkpoint if not present)
             if (!population.checkpointState) {
                 // Try to use the cloneOfBestPlayer checkpoint state if available
                 if (population.cloneOfBestPlayerFromPreviousGeneration && population.cloneOfBestPlayerFromPreviousGeneration.playerStateAtStartOfBestLevel) {
@@ -427,8 +465,8 @@ function keyReleased() {
                 }
             }
             if (population.checkpointState) {
-                population.saveCheckpointToFile();
-                alert('Checkpoint saved to file! Level: ' + population.currentBestLevelReached + ' Generation: ' + population.gen);
+                population.saveSnapshotToFile();
+                alert('Snapshot saved to file! Level: ' + population.currentBestLevelReached + ' Generation: ' + population.gen);
             } else {
                 alert('No checkpoint available to save');
             }

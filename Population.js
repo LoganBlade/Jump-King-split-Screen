@@ -223,6 +223,42 @@ class Population {
         }
     }
 
+    // Save a snapshot containing both the brain and checkpoint to a downloadable file
+    saveSnapshotToFile() {
+        if (!this.checkpointState) return;
+        try {
+            // Choose a brain to save: use the best player's brain if available, otherwise the clone
+            let brainToSave = null;
+            if (this.players && this.players.length > 0 && this.players[this.bestPlayerIndex]) {
+                brainToSave = this.players[this.bestPlayerIndex].brain;
+            } else if (this.cloneOfBestPlayerFromPreviousGeneration) {
+                brainToSave = this.cloneOfBestPlayerFromPreviousGeneration.brain;
+            }
+            const obj = {
+                type: 'snapshot',
+                generation: this.gen,
+                level: this.currentBestLevelReached,
+                checkpoint: this.checkpointState.toJSON(),
+                brain: brainToSave ? brainToSave.toJSON() : null,
+                savedAt: new Date().toISOString()
+            };
+            const json = JSON.stringify(obj, null, 2);
+            const blob = new Blob([json], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const filename = 'jumpking_snapshot_gen_' + this.gen + '_level_' + this.currentBestLevelReached + '.json';
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            setTimeout(() => URL.revokeObjectURL(url), 1000);
+            console.log('Snapshot file created: ' + filename);
+        } catch (e) {
+            console.error('Failed to save snapshot to file', e);
+        }
+    }
+
     // Load a checkpoint file and apply to population
     async loadCheckpointFromFile(file) {
         try {
@@ -238,6 +274,59 @@ class Population {
             return { generation: data.generation || 0, level: data.level || this.currentBestLevelReached };
         } catch (e) {
             console.error('Failed to parse checkpoint file', e);
+            return null;
+        }
+    }
+
+    // Apply snapshot data (object parsed from disk) and set population state
+    applySnapshotData(data) {
+        if (!data || data.type !== 'snapshot') return null;
+        try {
+            if (data.checkpoint) {
+                this.checkpointState = PlayerState.fromJSON(data.checkpoint);
+                if (this.checkpointState && this.checkpointState.bestLevelReached) {
+                    this.currentBestLevelReached = this.checkpointState.bestLevelReached;
+                }
+            }
+            if (data.generation !== undefined) {
+                this.gen = data.generation;
+            }
+            // If a brain is present in the snapshot, apply it to all players
+            if (data.brain) {
+                const loadedBrain = Brain.fromJSON(data.brain);
+                for (let i = 0; i < this.players.length; i++) {
+                    this.players[i].brain = loadedBrain.clone();
+                }
+                // Keep a clone of the best as the basis for future generations
+                this.cloneOfBestPlayerFromPreviousGeneration = this.players[this.bestPlayerIndex] ? this.players[this.bestPlayerIndex].clone() : this.players[0].clone();
+            }
+            // If we have a checkpoint state, ensure each player's start-of-best-level player state is loaded
+            if (this.checkpointState) {
+                for (let i = 0; i < this.players.length; i++) {
+                    this.players[i].playerStateAtStartOfBestLevel = this.checkpointState.clone();
+                    this.players[i].loadStartOfBestLevelPlayerState();
+                    if (this.checkpointState.brainActionNumber !== undefined) {
+                        this.players[i].brain.currentInstructionNumber = this.checkpointState.brainActionNumber;
+                    }
+                }
+            }
+            console.log('Snapshot applied: level ' + this.currentBestLevelReached + ' generation ' + this.gen);
+            return { generation: this.gen, level: this.currentBestLevelReached };
+        } catch (e) {
+            console.error('Failed to apply snapshot data', e);
+            return null;
+        }
+    }
+
+    // Load a snapshot file and apply it (wrapper that reads the file)
+    async loadSnapshotFromFile(file) {
+        try {
+            const text = await file.text();
+            const data = JSON.parse(text);
+            if (!data || data.type !== 'snapshot') return null;
+            return this.applySnapshotData(data);
+        } catch (e) {
+            console.error('Failed to parse snapshot file', e);
             return null;
         }
     }
