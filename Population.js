@@ -112,32 +112,10 @@ class Population {
         showLevel(highestLevelNo);
         alreadyShowingSnow = false;
         this.showingLevelNo = highestLevelNo;
-        // Build a list of players in the visible level range
-        let visiblePlayers = [];
         for (let i = 0; i < this.players.length; i++) {
-            let p = this.players[i];
-            if (p.currentLevelNo >= highestLevelNo - 1 && p.currentLevelNo <= highestLevelNo) {
-                visiblePlayers.push(p);
+            if (this.players[i].currentLevelNo >= highestLevelNo - 1 && this.players[i].currentLevelNo <=highestLevelNo ) {
+                this.players[i].Show();
             }
-        }
-        // Determine how many to draw based on global renderQuality (fallback to medium if undefined)
-        let maxToDraw = 100;
-        try {
-            if (typeof renderQuality !== 'undefined' && renderQuality) {
-                if (renderQuality === 'low') maxToDraw = 20;
-                else if (renderQuality === 'medium') maxToDraw = 100;
-                else if (renderQuality === 'high') maxToDraw = Math.max(this.players.length, 1000);
-            }
-        } catch (e) { }
-        // If too many visible players, sort by descending global height and slice
-        if (visiblePlayers.length > maxToDraw) {
-            visiblePlayers.sort((a, b) => b.GetGlobalHeight() - a.GetGlobalHeight());
-            visiblePlayers = visiblePlayers.slice(0, maxToDraw);
-        }
-        // Finally show the selected set
-        try { window.lastVisiblePlayersRendered = visiblePlayers.length; } catch(e) {}
-        for (let p of visiblePlayers) {
-            p.Show();
         }
 
         // this.ShowPopulationInfo();

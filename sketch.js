@@ -50,9 +50,6 @@ let increaseActionsByAmount = 5;
 let increaseActionsEveryXGenerations = 10;
 let evolationSpeed = 1;
 let maxUpdateTimePerFrameMs = 14; // ms budget per frame for updates (keeps rendering time for draw)
-// Rendering quality controls: reduce number of players drawn to improve framerate
-let renderQuality = 'medium'; // 'low', 'medium', 'high'
-const renderQualityLimits = { low: 20, medium: 100, high: 1000 };
 
 
 function preload() {
@@ -211,9 +208,7 @@ function draw() {
         text('Gen: ' + population.gen, 30, 35);
         text('Moves: ' + population.players[0].brain.instructions.length, 200, 35);
         text('Best: ' + population.bestHeight, 400, 35);
-        // Show rendering quality and number of players being drawn
-        text('Render: ' + renderQuality, 600, 35);
-        text('Drawn: ' + (window.lastVisiblePlayersRendered || 0), 760, 35);
+        
         // Success HUD removed per user request; hide candidate success count
         // Checkpoint HUD removed per user request
         // Carry actions removed — always carry parent's action number when resuming at checkpoint
@@ -487,13 +482,7 @@ function keyReleased() {
             window.autoSaveSnapshotsOnNewLevel = !window.autoSaveSnapshotsOnNewLevel;
             alert('Auto snapshot on new level: ' + (window.autoSaveSnapshotsOnNewLevel ? 'ON' : 'OFF'));
             break;
-        case 'Q':
-            // Cycle render quality: low -> medium -> high
-            if (renderQuality === 'low') renderQuality = 'medium';
-            else if (renderQuality === 'medium') renderQuality = 'high';
-            else renderQuality = 'low';
-            alert('Render quality: ' + renderQuality);
-            break;
+        
         // 'O' removed — carry actions always enabled
         case 'K':
             // K key intentionally does nothing now — reserved for future UI features
